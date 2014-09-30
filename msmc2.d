@@ -41,7 +41,7 @@ import model.time_intervals;
 auto maxIterations = 20UL;
 double mutationRate;
 double recombinationRate;
-auto timeSegmentPattern = [1UL, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
+auto timeSegmentPattern = [4UL, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 6];
 uint nrThreads;
 auto verbose = false;
 string outFilePrefix;
@@ -62,13 +62,11 @@ auto helpString = "Usage: msmc [options] <datafiles>
   Options:
     -i, --maxIterations=<size_t> : number of EM-iterations [default=20]
     -o, --outFilePrefix=<string> : file prefix to use for all output files
-    -m, --mutationRate=<double> : mutation rate, scaled by 2N. In case of more than two haplotypes, this needs to be 
-          the same as was used in running \"msmc branchlength\".
+    -m, --mutationRate=<double> : mutation rate, scaled by 2N.
     -r, --recombinationRate=<double> : recombination rate, scaled by 2N, to begin with
-          [by default set to mutationRate / 4]. Recombination rate inference does not work very well for 
-          more than two haplotypes. Using the -R option is recommended for more than 2 haplotypes.
+          [by default set to mutationRate / 4].
     -t, --nrThreads=<size_t> : nr of threads to use (defaults to nr of CPUs)
-    -p, --timeSegmentPattern=<string> : pattern of fixed time segments [default=10*1+15*2]
+    -p, --timeSegmentPattern=<string> : pattern of fixed time segments [default=1*4+25*2+1*4+1*6]
     -R, --fixedRecombination : keep recombination rate fixed [recommended, but not set by default]
     -v, --verbose: write out the expected number of transition matrices (into a separate file)
     -I, --indices: indices (comma-separated) of alleles in the data file to run over
@@ -219,10 +217,11 @@ void run() {
     
     auto newParams = getMaximization(transitions, emissions, params, timeSegmentPattern, fixedRecombination);
     params = newParams;
-    auto lambdaCI = getLambdaCI(transitions, emissions, params, timeSegmentPattern);
-    auto recCI = getRecombinationCI(transitions, emissions, params, timeSegmentPattern);
+    // auto lambdaCI = getLambdaCI(transitions, emissions, params, timeSegmentPattern);
+    // auto recCI = getRecombinationCI(transitions, emissions, params, timeSegmentPattern);
     
-    printLoop(loopFileName, params, logLikelihood, recCI, lambdaCI);
+    // printLoop(loopFileName, params, logLikelihood, recCI, lambdaCI);
+    printLoop(loopFileName, params, logLikelihood);
     if(verbose) {
       auto filename = outFilePrefix ~ format(".loop_%s.expectationMatrix.txt", iteration);
       printMatrix(filename, transitions, emissions);
@@ -256,16 +255,22 @@ void printMatrix(string filename, double[][] transitions, double[][2] emissions)
   f.writeln(emissions[1].map!"text(a)"().join("\t"));
 }
 
-void printLoop(string filename, PSMCmodel params, double logLikelihood, double[2] recCI, double[2][] lambdaCI) {
+// void printLoop(string filename, PSMCmodel params, double logLikelihood, double[2] recCI, double[2][] lambdaCI) {
+//   auto f = File(filename, "a");
+//   f.writef("%s,%s,%s\t%.2f\t%s\t", params.recombinationRate, recCI[0], recCI[1], logLikelihood,
+//            params.timeIntervals.boundaries.map!(a => text(a * params.mutationRate)).join(",").array());
+//   foreach(i; 0 .. lambdaCI.length) {
+//     f.writef("%s,%s,%s", params.lambdaVec[i] / mutationRate, lambdaCI[i][0] / mutationRate, lambdaCI[i][1] / mutationRate);
+//     if(i < lambdaCI.length - 1)
+//       f.write(",");
+//   }
+//   f.write("\n");
+// }
+
+void printLoop(string filename, PSMCmodel params, double logLikelihood) {
   auto f = File(filename, "a");
-  f.writef("%s,%s,%s\t%.2f\t%s\t", params.recombinationRate, recCI[0], recCI[1], logLikelihood, 
+  f.writef("%s\t%.2f\t%s\n", params.recombinationRate, logLikelihood, 
            params.timeIntervals.boundaries.map!(a => text(a * params.mutationRate)).join(",").array());
-  foreach(i; 0 .. lambdaCI.length) {
-    f.writef("%s,%s,%s", params.lambdaVec[i] / mutationRate, lambdaCI[i][0] / mutationRate, lambdaCI[i][1] / mutationRate);
-    if(i < lambdaCI.length - 1)
-      f.write(",");
-  }
-  f.write("\n");
 }
 
 void printFinal(string filename, PSMCmodel params) { 
