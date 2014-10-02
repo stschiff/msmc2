@@ -2,6 +2,8 @@ debug : build/debug/msmc2
 
 release : build/release/msmc2
 
+all : debug release
+
 unittest: build/debug/unittest
 	build/debug/unittest
 
