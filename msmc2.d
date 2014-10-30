@@ -54,28 +54,31 @@ size_t hmmStrideWidth = 1000;
 double[] lambdaVec;
 size_t nrTimeSegments;
 size_t[] indices;
+int[] subpopLabels;
 string logFileName, loopFileName, finalFileName;
 double time_factor = 0.1;
 
 
 auto helpString = "Usage: msmc [options] <datafiles>
   Options:
-    -i, --maxIterations=<size_t> : number of EM-iterations [default=20]
-    -o, --outFilePrefix=<string> : file prefix to use for all output files
-    -m, --mutationRate=<double> : mutation rate, scaled by 2N.
-    -r, --recombinationRate=<double> : recombination rate, scaled by 2N, to begin with
-          [by default set to mutationRate / 4].
-    -t, --nrThreads=<size_t> : nr of threads to use (defaults to nr of CPUs)
+    -i, --maxIterations=<size_t> :      number of EM-iterations [default=20]
+    -o, --outFilePrefix=<string> :      file prefix to use for all output files
+    -m, --mutationRate=<double> :       mutation rate, scaled by 2N.
+    -r, --recombinationRate=<double> :  recombination rate, scaled by 2N, to begin with
+                                        [by default set to mutationRate / 4].
+    -t, --nrThreads=<size_t> :          nr of threads to use (defaults to nr of CPUs)
     -p, --timeSegmentPattern=<string> : pattern of fixed time segments [default=1*4+25*2+1*4+1*6]
-    -R, --fixedRecombination : keep recombination rate fixed [recommended, but not set by default]
-    -v, --verbose: write out the expected number of transition matrices (into a separate file)
-    -I, --indices: indices (comma-separated) of alleles in the data file to run over
-    --skipAmbiguous: skip sites with ambiguous phasing. Recommended for gene flow analysis
-    --hmmStrideWidth <int> : stride width to traverse the data in the expectation step [default=1000]
-    --initialLambdaVec <str> : comma-separated string of lambda-values to start with. This can be used to
-      continue a previous run by copying the values in the last row and the third column of the corresponding
-      *.loop file
-    --time_factor <double>: factor to reduce or extent the time intervals";
+    -R, --fixedRecombination :          keep recombination rate fixed [recommended, but not set by default]
+    -v, --verbose:                      write out the expected number of transition matrices (into a separate file)
+    -I, --indices:                      indices (comma-separated) of alleles in the data file to run over
+    -P, --subpopLabels:                 comma-separated list of 0s and 1s to indicate subpopulations. If given, 
+                                        estimate coalescence rates only across populations.
+    --skipAmbiguous:                    skip sites with ambiguous phasing. Recommended for gene flow analysis
+    --hmmStrideWidth <int> :            stride width to traverse the data in the expectation step [default=1000]
+    --initialLambdaVec <str> :          comma-separated string of lambda-values to start with. This can be used to
+                                        continue a previous run by copying the values in the last row and the third 
+                                        column of the corresponding *.loop file
+    --time_factor <double> :            factor to reduce or extent the time intervals";
 
 void main(string[] args) {
   try {
@@ -117,6 +120,10 @@ void parseCommandLine(string[] args) {
   void handleIndices(string option, string value) {
     indices = std.string.split(value, ",").map!"a.to!size_t()"().array();
   }
+
+  void handleSubpopLabels(string option, string value) {
+    subpopLabels = std.string.split(value, ",").map!"a.to!int()"().array();
+  }
   
   if(args.length == 1) {
     displayHelpMessageAndExit();
@@ -138,18 +145,23 @@ void parseCommandLine(string[] args) {
       "fixedRecombination|R", &fixedRecombination,
       "initialLambdaVec", &handleLambdaVecString,
       "treeFileNames", &handleTreeFileNames,
-      "time_factor", &time_factor
+      "time_factor", &time_factor,
+      "subpopLabels|P", &handleSubpopLabels
   );
   if(nrThreads)
     std.parallelism.defaultPoolThreads(nrThreads);
   enforce(args.length > 1, "need at least one input file");
   enforce(hmmStrideWidth > 0, "hmmStrideWidth must be positive");
   inputFileNames = args[1 .. $];
+  auto nrHaplotypes = getNrHaplotypesFromFile(inputFileNames[0]);
   if(indices.length == 0) {
-    auto nrHaplotypes = getNrHaplotypesFromFile(inputFileNames[0]);
     indices = iota(nrHaplotypes).array();
   }
-  inputData = readDataFromFiles(inputFileNames, indices, skipAmbiguous);
+  if(subpopLabels.length == 0) {
+      subpopLabels = iota(to!int(nrHaplotypes)).array();
+  }
+  enforce(subpopLabels.length == indices.length, "subpopLabels must have same lengths as nr of haplotypes");
+  inputData = readDataFromFiles(inputFileNames, indices, subpopLabels, skipAmbiguous);
   if(isNaN(mutationRate)) {
     stderr.write("estimating mutation rate: ");
     mutationRate = getTheta(inputData) / 2.0;
@@ -187,6 +199,7 @@ void printGlobalParams() {
   logInfo(format("initialLambdaVec:    %s\n", lambdaVec));
   logInfo(format("skipAmbiguous:       %s\n", skipAmbiguous));
   logInfo(format("indices:             %s\n", indices));
+  logInfo(format("subpopLabels:        %s\n", subpopLabels));
   logInfo(format("logging information written to %s\n", logFileName));
   logInfo(format("loop information written to %s\n", loopFileName));
   logInfo(format("final results written to %s\n", finalFileName));
@@ -231,15 +244,17 @@ void run() {
   printFinal(finalFileName, params);
 }
 
-SegSite_t[][] readDataFromFiles(string[] filenames, size_t[] indices, bool skipAmbiguous) {
+SegSite_t[][] readDataFromFiles(string[] filenames, size_t[] indices, int[] subpopLabels, bool skipAmbiguous) {
   SegSite_t[][] ret;
   foreach(filename; filenames) {
     foreach(i; 0 .. indices.length - 1) {
       foreach(j; i + 1 .. indices.length) {
-        size_t[2] ind_pair = [indices[i], indices[j]];
-        auto data = readSegSites(filename, ind_pair, skipAmbiguous);
-        logInfo(format("read %s SNPs from file %s, using indices %s\n", data.length, filename, ind_pair));
-        ret ~= data;
+        if(subpopLabels[i] != subpopLabels[j]) {
+          size_t[2] ind_pair = [indices[i], indices[j]];
+          auto data = readSegSites(filename, ind_pair, skipAmbiguous);
+          logInfo(format("read %s SNPs from file %s, using indices %s\n", data.length, filename, ind_pair));
+          ret ~= data;
+        }
       }
     }
   }

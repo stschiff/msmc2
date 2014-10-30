@@ -1,3 +1,5 @@
+all: debug release
+
 debug : build/debug/msmc2
 
 release : build/release/msmc2
