@@ -153,13 +153,12 @@ void parseCommandLine(string[] args) {
   enforce(args.length > 1, "need at least one input file");
   enforce(hmmStrideWidth > 0, "hmmStrideWidth must be positive");
   inputFileNames = args[1 .. $];
-  auto nrHaplotypes = getNrHaplotypesFromFile(inputFileNames[0]);
   if(indices.length == 0) {
+    auto nrHaplotypes = getNrHaplotypesFromFile(inputFileNames[0]);
     indices = iota(nrHaplotypes).array();
   }
-  if(subpopLabels.length == 0) {
-      subpopLabels = iota(to!int(nrHaplotypes)).array();
-  }
+  if(subpopLabels.length == 0)
+    subpopLabels = indices.map!"a.to!int()"().array();
   enforce(subpopLabels.length == indices.length, "subpopLabels must have same lengths as nr of haplotypes");
   inputData = readDataFromFiles(inputFileNames, indices, subpopLabels, skipAmbiguous);
   if(isNaN(mutationRate)) {
