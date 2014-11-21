@@ -283,8 +283,9 @@ void printMatrix(string filename, double[][] transitions, double[][2] emissions)
 
 void printLoop(string filename, PSMCmodel params, double logLikelihood) {
   auto f = File(filename, "a");
-  f.writef("%s\t%.2f\t%s\n", params.recombinationRate, logLikelihood, 
-           params.timeIntervals.boundaries.map!(a => text(a * params.mutationRate)).join(",").array());
+  f.writef("%s\t%.2f\t%s\t%s\n", params.recombinationRate, logLikelihood, 
+           params.timeIntervals.boundaries.map!(a => text(a * params.mutationRate)).join(",").array(),
+           params.lambdaVec.map!(a => text(a / params.mutationRate)).join(",").array());
 }
 
 void printFinal(string filename, PSMCmodel params) { 
