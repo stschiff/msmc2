@@ -244,20 +244,19 @@ void run() {
 }
 
 SegSite_t[][] readDataFromFiles(string[] filenames, size_t[] indices, int[] subpopLabels, bool skipAmbiguous) {
-  SegSite_t[][] ret;
-  foreach(filename; filenames) {
-    foreach(i; 0 .. indices.length - 1) {
-      foreach(j; i + 1 .. indices.length) {
-        if(subpopLabels[i] != subpopLabels[j]) {
-          size_t[2] ind_pair = [indices[i], indices[j]];
-          auto data = readSegSites(filename, ind_pair, skipAmbiguous);
-          logInfo(format("read %s SNPs from file %s, using indices %s\n", data.length, filename, ind_pair));
-          ret ~= data;
-        }
-      }
+    SegSite_t[][] ret;
+    size_t[2][] index_pairs;
+    foreach(i; 0 .. indices.length - 1)
+        foreach(j; i + 1 .. indices.length)
+            if(subpopLabels[i] != subpopLabels[j])
+                index_pairs ~= [indices[i], indices[j]];
+    
+    foreach(filename; filenames) {
+        auto data = readSegSites(filename, index_pairs, skipAmbiguous);
+        logInfo(format("read %s SNPs from file %s, using indices %s\n", data[0].length, filename, index_pairs));
+        ret ~= data;
     }
-  }
-  return ret;
+    return ret;
 }
 
 void printMatrix(string filename, double[][] transitions, double[][2] emissions) {

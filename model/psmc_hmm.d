@@ -297,7 +297,7 @@ unittest {
 
   auto nrS = propagationCore.getPSMC.nrStates;
   
-  auto data = readSegSites("model/hmm_testData.txt", [0UL, 1], false);
+  auto data = readSegSites("model/hmm_testData.txt", [[0UL, 1]], false)[0];
   
   auto psmc_hmm = new PSMC_hmm(propagationCore, data);
   psmc_hmm.runForward();

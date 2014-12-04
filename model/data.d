@@ -53,14 +53,14 @@ class SegSite_t {
 }
 
 void checkDataLine(const char[] line) {
-  auto r = regex(r"^\w+\s\d+\s\d+(\s[ACTG01\?,]+){0,1}$");
+  auto r = regex(r"^\w+\s\d+\s\d+\s[ACTG01\?,]+$");
   enforce(match(line, r));
 }
 
 unittest {
   assertThrown(checkDataLine("1 20 5 AACC,AACA 2.44"));
   assertNotThrown(checkDataLine("1 20 5 AACC"));
-  assertNotThrown(checkDataLine("4 5 2"));
+  assertThrown(checkDataLine("4 5 2"));
   assertNotThrown(checkDataLine("1 10 5 ACC"));
   assertThrown(checkDataLine("1 20 5 AGGSSXX"));
 }
@@ -86,28 +86,25 @@ unittest {
   tmp.writeln("1 10 5 ACC,CCA");
   tmp.close();
   assert(getNrHaplotypesFromFile("/tmp/nrHaplotypesTest.txt") == 3);
-  tmp = File("/tmp/nrHaplotypesTest.txt", "w");
-  tmp.writeln("1 10 5");
-  tmp.close();
-  assert(getNrHaplotypesFromFile("/tmp/nrHaplotypesTest.txt") == 2);
 }
 
-SegSite_t[] readSegSites(string filename, size_t[2] indices, bool skipAmbiguous) {
+SegSite_t[][] readSegSites(string filename, size_t[2][] indices, bool skipAmbiguous) {
   // format: chr position nr_calledSites [alleles] -> tab separated
   // [alleles]: comma-separated for ambiguous phasing
   // if no alleles are given, assume M=2 and "01"
-  // returns data for pair of haplotypes
-  // TODO: should return SegSite_t[][], with one array of SegSite_t[] for each pair of haplotypes
+  // returns data for each pair of indices
   
-  SegSite_t[] ret;
+  auto ret = new SegSite_t[][indices.length];
 
   auto f = File(filename, "r");
   long lastPos = -1;
+
   foreach(line; f.byLine()) {
     // checkDataLine(line.strip());
     auto fields = line.strip().split();
     auto pos = to!size_t(fields[1]);
     auto nrCalledSites = to!size_t(fields[2]);
+    auto raw_allele_strings = split(fields[3], ",");
     if(lastPos == -1) {
       lastPos = pos - nrCalledSites;
     }
@@ -115,63 +112,35 @@ SegSite_t[] readSegSites(string filename, size_t[2] indices, bool skipAmbiguous)
     enforce(nrCalledSites <= pos - lastPos);
     enforce(nrCalledSites > 0, "nr of called sites must be positive!");
     
-    if(fields.length > 2) {
-      // checking whether we have any "N" or "?" in the data, which would mark it as missing data.
-      auto is_missing = false;
-      auto raw_allele_strings = split(fields[3], ",");
-      foreach(raw_allele_string; raw_allele_strings) {
-        foreach(i; indices) {
-          if(i >= raw_allele_string.length) {
-            stderr.writeln("Haplotype index exceeds number of haplotypes in datafile");
-            exit(0);
-          }
-          if(!canFind("ACTG01", raw_allele_string[i])) {
-            is_missing = true;
-            break;
-          }
-        }
-      }
-      if(is_missing) {
+    foreach(i, ind; indices) {
+     if(has_missing_data(raw_allele_strings, ind)) {
         if(nrCalledSites < pos - lastPos) { // missing data
-          ret ~= new SegSite_t(pos - nrCalledSites, 0UL);
+          ret[i] ~= new SegSite_t(pos - nrCalledSites, 0UL);
         }
         if(nrCalledSites > 1)
-          ret ~= new SegSite_t(pos - 1, 1UL);
-        ret ~= new SegSite_t(pos, 0UL);
+          ret[i] ~= new SegSite_t(pos - 1, 1UL);
+        ret[i] ~= new SegSite_t(pos, 0UL);
         lastPos = pos;
       }
       else {
         size_t[] allele_indices;
-        foreach(allele_string; split(fields[3], ",")) {
-          char[] selected_allele_string;
-          foreach(i; indices)
-            selected_allele_string ~= allele_string[i];
+        foreach(allele_string; raw_allele_strings) {
+          auto selected_allele_string = [allele_string[ind[0]], allele_string[ind[1]]];
           allele_indices ~= selected_allele_string[0] == selected_allele_string[1] ? 1UL : 2UL;
         }
         if(nrCalledSites < pos - lastPos) { // missing data
-          ret ~= new SegSite_t(pos - nrCalledSites, 0UL);
+          ret[i] ~= new SegSite_t(pos - nrCalledSites, 0UL);
         }
         allele_indices = allele_indices.uniq().array();
         if(skipAmbiguous && allele_indices.length > 1)
-          ret ~= new SegSite_t(pos, 0UL);
+          ret[i] ~= new SegSite_t(pos, 0UL);
         else
-          ret ~= new SegSite_t(pos, allele_indices);
-        lastPos = pos;
+          ret[i] ~= new SegSite_t(pos, allele_indices);
       }
-    }
-    else {
-      if(nrCalledSites < pos - lastPos) { // missing data
-        ret ~= new SegSite_t(pos - nrCalledSites, 0UL);
-      }
-      ret ~= new SegSite_t(pos, 2UL);
-      lastPos = pos;
-    }
-  }
-  
-  foreach(i; 1 .. ret.length) {
-    assert(ret[i].pos > ret[i - 1].pos, text([i, ret[i].pos, ret[i - 1].pos]));
-  }
-  
+   }
+    
+   lastPos = pos;
+  } 
   return ret;
 }
 
@@ -184,7 +153,7 @@ unittest {
   tmp_file.writeln("1 1000012 4 ACCG,TTGA");
   tmp_file.close();
 
-  auto segsites = readSegSites("/tmp/msmc_data_unittest.tmp", [0UL, 1], false);
+  auto segsites = readSegSites("/tmp/msmc_data_unittest.tmp", [[0UL, 1]], false)[0];
   assert(segsites[0].pos == 1000000 && segsites[0].obs == [1]);
   assert(segsites[1].pos == 1000002 && segsites[1].obs == [0]);
   assert(segsites[3].pos == 1000005 && segsites[3].obs == [0]);
@@ -202,7 +171,7 @@ unittest {
   tmp_file.writeln("1 1000012 4 AA,TT");
   tmp_file.close();
 
-  auto segsites = readSegSites("/tmp/msmc_data_unittest.tmp", [0UL, 1], false);
+  auto segsites = readSegSites("/tmp/msmc_data_unittest.tmp", [[0UL, 1]], false)[0];
   assert(segsites[0].pos == 1000000 && segsites[0].obs == [2]);
   assert(segsites[1].pos == 1000002 && segsites[1].obs == [0]);
   assert(segsites[3].pos == 1000005 && segsites[3].obs == [0]);
@@ -212,6 +181,18 @@ unittest {
   
 }
 
+bool has_missing_data(in char[][] raw_allele_strings, size_t[2] indices) {
+    auto is_missing = false;
+    foreach(raw_allele_string; raw_allele_strings) {
+      foreach(i; indices) {
+       if(!canFind("ACTG01", raw_allele_string[i])) {
+          return true;
+        }
+      }
+    }
+    return false;
+}
+ 
 double getTheta(in SegSite_t[][] data) {
   size_t nr_hets; 
   size_t called_sites;
