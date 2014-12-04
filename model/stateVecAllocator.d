@@ -18,22 +18,28 @@
  */
 
 module model.stateVecAllocator;
+
+import model.gsl_matrix_vector;
+
 class StateVecAllocator {
-  double[] vec;
-  size_t bytesUsed;
+  gsl_vector* vec;
+  size_t offset;
   
   this(size_t reservedSize) {
-    vec = new double[reservedSize];
-    bytesUsed = 0;
+    vec = gsl_vector_alloc(reservedSize);
+    offset = 0;
+  }
+
+  ~this() {
+    gsl_vector_free(vec);
   }
   
-  double[] allocate(size_t size) {
-    auto start = bytesUsed;
-    auto end = start + size;
-    if(vec.length < end)
+  gsl_vector_view allocate(size_t size) {
+    if(vec.size < offset + size)
       throw new Exception("State Allocator full");
-    bytesUsed += size;
-    return vec[start .. end];
+    auto ret = gsl_vector_subvector(vec, offset, size);
+    offset += size;
+    return ret;
   }
 }
 

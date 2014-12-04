@@ -28,14 +28,15 @@ import model.propagation_core;
 import model.psmc_model;
 import model.stateVec;
 import model.stateVecAllocator;
+import model.gsl_matrix_vector;
 
 class PropagationCore {
   
-  double[][][] forwardPropagators, backwardPropagators;
-  double[][][] forwardPropagatorsMissing, backwardPropagatorsMissing;
+  gsl_matrix*[] forwardPropagators, backwardPropagators;
+  gsl_matrix*[] forwardPropagatorsMissing, backwardPropagatorsMissing;
   
   double[][] emissionProbs; // first index: second index: obs
-  double[][] transitionMatrix;
+  gsl_matrix* transitionMatrix;
   
   const PSMCmodel psmc;
   
@@ -43,12 +44,12 @@ class PropagationCore {
     enforce(maxDistance > 0);
     this.psmc = psmc;
 
-    forwardPropagators = new double[][][](maxDistance, psmc.nrStates, psmc.nrStates);
-    backwardPropagators = new double[][][](maxDistance, psmc.nrStates, psmc.nrStates);
-    forwardPropagatorsMissing = new double[][][](maxDistance, psmc.nrStates, psmc.nrStates);
-    backwardPropagatorsMissing = new double[][][](maxDistance, psmc.nrStates, psmc.nrStates);
+    forwardPropagators = new gsl_matrix*[maxDistance];
+    backwardPropagators = new gsl_matrix*[maxDistance];
+    forwardPropagatorsMissing = new gsl_matrix*[maxDistance];
+    backwardPropagatorsMissing = new gsl_matrix*[maxDistance];
     emissionProbs = new double[][](3, psmc.nrStates);
-    transitionMatrix = new double[][](psmc.nrStates, psmc.nrStates);
+    transitionMatrix = gsl_matrix_alloc(psmc.nrStates, psmc.nrStates);
       
     foreach(i; 0 .. 3)
       foreach(a; 0 .. psmc.nrStates)
@@ -56,7 +57,7 @@ class PropagationCore {
     
     foreach(a; 0 .. psmc.nrStates)
       foreach(b; 0 .. psmc.nrStates)
-        transitionMatrix[a][b] = psmc.transitionProb(a, b);
+        gsl_matrix_set(transitionMatrix, a, b, psmc.transitionProb(a, b));
       
     computeForwardPropagators(forwardPropagators, false, maxDistance);
     computeBackwardPropagators(backwardPropagators, false, maxDistance);
@@ -65,44 +66,51 @@ class PropagationCore {
     computeBackwardPropagators(backwardPropagatorsMissing, true, maxDistance);
     
   }
-  
-  private void computeForwardPropagators(double[][][] ret, bool missing_data, size_t maxDistance) const
-  {
-    foreach(a; 0 .. psmc.nrStates) {
-      double e = missing_data ? 1.0 : emissionProbs[1][a];
-      foreach(b; 0 .. psmc.nrStates)
-        ret[0][a][b] = transitionMatrix[a][b] * e;
-    }
-
-    foreach(distance; 1 .. maxDistance) {
-      foreach(a; 0 .. psmc.nrStates){ 
-        foreach(b; 0 .. psmc.nrStates) {
-          ret[distance][a][b] = 0.0;
-          foreach(c; 0 .. psmc.nrStates)
-            ret[distance][a][b] += ret[distance - 1][c][b] * ret[0][a][c];
-        }
-      }
+  ~this() {
+    gsl_matrix_free(transitionMatrix);
+    foreach(i; 0 .. maxDistance) {
+        gsl_matrix_free(forwardPropagators[i]);
+        gsl_matrix_free(forwardPropagatorsMissing[i]);
+        gsl_matrix_free(backwardPropagators[i]);
+        gsl_matrix_free(backwardPropagatorsMissing[i]);
     }
   }
   
-  private void computeBackwardPropagators(double[][][] ret, bool missing_data, size_t maxDistance) const
+  private void computeForwardPropagators(gsl_matrix*[] ret, bool missing_data, size_t maxDistance) const
   {
+    ret[0] = gsl_matrix_alloc(psmc.nrStates, psmc.nrStates);
     foreach(a; 0 .. psmc.nrStates) {
       double e = missing_data ? 1.0 : emissionProbs[1][a];
-      foreach(b; 0 .. psmc.nrStates)
-        ret[0][a][b] = transitionMatrix[a][b] * e;
+      foreach(b; 0 .. psmc.nrStates) {
+        auto val = gsl_matrix_get(transitionMatrix, a, b) * e;
+        gsl_matrix_set(ret[0], a, b, val);
+      }
     }
 
     foreach(distance; 1 .. maxDistance) {
-      foreach(a; 0 .. psmc.nrStates){ 
-        foreach(b; 0 .. psmc.nrStates) {
-          ret[distance][a][b] = 0.0;
-          foreach(c; 0 .. psmc.nrStates)
-            ret[distance][a][b] += ret[distance - 1][a][c] * ret[0][c][b];
-        }
-      }
+      ret[distance] = gsl_matrix_alloc(psmc.nrStates, psmc.nrStates);
+      gsl_blas_dgemm_checked(CBLAS_TRANSPOSE_t.CblasNoTrans, CBLAS_TRANSPOSE_t.CblasNoTrans,
+                     1.0, ret[0], ret[distance - 1], 0.0, ret[distance]);
     }
   }
+  
+  private void computeBackwardPropagators(gsl_matrix*[] ret, bool missing_data, size_t maxDistance) const
+  {
+    ret[0] = gsl_matrix_alloc(psmc.nrStates, psmc.nrStates);
+    foreach(a; 0 .. psmc.nrStates) {
+      double e = missing_data ? 1.0 : emissionProbs[1][a];
+      foreach(b; 0 .. psmc.nrStates) {
+        auto val = gsl_matrix_get(transitionMatrix, a, b) * e;
+        gsl_matrix_set(ret[0], a, b, val);
+      }
+    }
+
+    foreach(distance; 1 .. maxDistance) {
+      ret[distance] = gsl_matrix_alloc(psmc.nrStates, psmc.nrStates);
+      gsl_blas_dgemm(CBLAS_TRANSPOSE_t.CblasNoTrans, CBLAS_TRANSPOSE_t.CblasNoTrans,
+                     1.0, ret[distance - 1], ret[0], 0.0, ret[distance]);
+    }
+ }
   
   private double fullE(in SegSite_t segsite, size_t a) const {
     double ret = 0.0;
@@ -119,14 +127,10 @@ class PropagationCore {
     assert(to_segsite.pos == from_segsite.pos + 1);
   }
   body {
-    to.setZero();
-    
+    gsl_blas_dgemv(CBLAS_TRANSPOSE_t.CblasNoTrans, 1.0, transitionMatrix, from.vec, 0.0, to.vec);
     foreach(a; 0 .. psmc.nrStates) {
-      auto sum = 0.0;
-      foreach(b; 0 .. psmc.nrStates) {
-        sum += from.vec[b] * transitionMatrix[a][b];
-      }
-      to.vec[a] = fullE(to_segsite, a) * sum;
+        auto val = gsl_vector_get(to.vec, a) * fullE(to_segsite, a);
+        gsl_vector_set(to.vec, a, val);
     }
   }
   
@@ -136,12 +140,10 @@ class PropagationCore {
     assert(to_segsite.pos == from_segsite.pos + 1);
   }
   body {
-    foreach(b; 0 .. psmc.nrStates) {
-      auto sum = 0.0;
-      foreach(a; 0 .. psmc.nrStates) {
-        sum += to.vec[a] * fullE(to_segsite, a) * transitionMatrix[a][b];
-      }
-      from.vec[b] = sum;
+    gsl_blas_dgemv(CBLAS_TRANSPOSE_t.CblasTrans, 1.0, transitionMatrix, to.vecE, 0.0, from.vec);
+    foreach(a; 0 .. psmc.nrStates) {
+        auto val = gsl_vector_get(from.vec, a) * fullE(from_segsite, a);
+        gsl_vector_set(from.vecE, a, val);
     }
   }
   
@@ -153,24 +155,14 @@ class PropagationCore {
   }
   body {
     auto dist = to_segsite.pos - from_segsite.pos;
-    foreach(a; 0 .. psmc.nrStates) {
       if(to_segsite.obs[0] == 0) {
         auto prop = forwardPropagatorsMissing[dist - 1];
-        auto sum = 0.0;
-        foreach(b; 0 .. psmc.nrStates) {
-          sum += from.vec[b] * prop[a][b];
-        }
-        to.vec[a] = sum;
+        gsl_blas_dgemv(CBLAS_TRANSPOSE_t.CblasNoTrans, 1.0, prop, from.vec, 0.0, to.vec);
       }
       else {
         auto prop = forwardPropagators[dist - 1];
-        auto sum = 0.0;
-        foreach(b; 0 .. psmc.nrStates) {
-          sum += from.vec[b] * prop[a][b];
-        }
-        to.vec[a] = sum;
+        gsl_blas_dgemv(CBLAS_TRANSPOSE_t.CblasNoTrans, 1.0, prop, from.vec, 0.0, to.vec);
       }
-    }
   }
   
   void propagateMultiBackward(in State_t to, State_t from,
@@ -181,25 +173,18 @@ class PropagationCore {
   }
   body {  
     auto dist = to_segsite.pos - from_segsite.pos;
-    foreach(b; 0 .. psmc.nrStates) {
       if(to_segsite.obs[0] == 0) {
         auto prop = backwardPropagatorsMissing[dist - 1];
-        auto sum = 0.0;
-        foreach(a; 0 .. psmc.nrStates) {
-          sum += to.vec[a] * prop[a][b];
-        }
-        from.vec[b] = sum;
+        gsl_blas_dgemv(CBLAS_TRANSPOSE_t.CblasTrans, 1.0, prop, to.vec, 0.0, from.vec);
       }
       else {
         auto prop = backwardPropagators[dist - 1];
-        auto sum = 0.0;
-        foreach(a; 0 .. psmc.nrStates) {
-          sum += to.vec[a] * prop[a][b];
-        }
-        from.vec[b] = sum;
+        gsl_blas_dgemv(CBLAS_TRANSPOSE_t.CblasTrans, 1.0, prop, to.vec, 0.0, from.vec);
       }
-    }
-
+      foreach(a; 0 .. psmc.nrStates) {
+        auto val = gsl_vector_get(from.vec, a) * fullE(from_segsite, a);
+        gsl_vector_set(from.vecE, a, val);
+      }
   }
   
   const(PSMCmodel) getPSMC() const {
@@ -211,42 +196,49 @@ class PropagationCore {
   }
 
   @property size_t backwardStateSize() const {
-    return psmc.nrStates;
+    return 2 * psmc.nrStates;
   }
   
   State_t newForwardState() const {
-    return new State_t(psmc.nrStates);
+    return new State_t(psmc.nrStates, false);
   }
 
   State_t newBackwardState() const {
-    return new State_t(psmc.nrStates);
+    return new State_t(psmc.nrStates, true);
   }
 
   State_t newForwardState(StateVecAllocator stateAllocator) const {
-    return new State_t(psmc.nrStates, stateAllocator);
+    return new State_t(psmc.nrStates, false, stateAllocator);
   }
 
   State_t newBackwardState(StateVecAllocator stateAllocator) const {
-    return new State_t(psmc.nrStates, stateAllocator);
+    return new State_t(psmc.nrStates, true, stateAllocator);
   }
   
   void initialState(State_t s) const {
     foreach(a; 0 .. psmc.nrStates) {
       auto val = psmc.equilibriumProb(a);
-      s.vec[a] = val;
+      gsl_vector_set(s.vec, a, val);
     }
   }
   
-  void setState(State_t s, double x, in SegSite_t segsite) const {
-    foreach(a; 0 .. psmc.nrStates)
-      s.vec[a] = x;
+  void setState(State_t s, double x, in SegSite_t segsite) const 
+  body {
+    foreach(a; 0 .. psmc.nrStates) {
+      gsl_vector_set(s.vec, a, x);
+      if(s.isBwd) {
+          auto val = x * fullE(segsite, a);
+          gsl_vector_set(s.vecE, a, val);
+      }
+    }
   }
   
   void getTransitionExpectation(State_t f, State_t b, in SegSite_t to_segsite, double[][] eMat) const
   {
     foreach(a; 0 .. psmc.nrStates)
       foreach(b_; 0 .. psmc.nrStates)
-        eMat[a][b_] = f.vec[b_] * transitionMatrix[a][b_] * b.vec[a] * fullE(to_segsite, a);
+        eMat[a][b_] = gsl_vector_get(f.vec, b_) * gsl_matrix_get(transitionMatrix, a, b_) *
+                      gsl_vector_get(b.vec, a) * fullE(to_segsite, a);
   }
 
   void getEmissionExpectation(State_t f, State_t b, in SegSite_t to_segsite, double[][2] eMat) const
@@ -257,7 +249,7 @@ class PropagationCore {
       if(o > 0) {
         auto norm = 0.0;
         foreach(a; 0 .. psmc.nrStates) {
-          auto n = f.vec[a] * b.vec[a] / cast(double)(to_segsite.obs.length);
+          auto n = gsl_vector_get(f.vec, a) * gsl_vector_get(b.vec, a) / cast(double)(to_segsite.obs.length);
           eMat[o - 1][a] = n;
           norm += n;
         }
@@ -275,7 +267,7 @@ class PropagationCore {
 
 unittest {
   import std.math;
-  writeln("testing propagationCoreFast and propagationCoreNaive propagateForward ");
+  writeln("testing propagateForward ");
   auto psmc = new PSMCmodel(0.01, 0.001, 10);
   auto lvl = 1.0e-8;
   auto dist = 10;
@@ -299,9 +291,9 @@ unittest {
   propagationCore.propagateMultiForward(f, fNext, left_site, right_site);
   auto fSinglesA = fSingles.vec;
   auto fNextA = fNext.vec;
-  foreach(aij; 0 .. psmc.nrStates) {
+  foreach(a; 0 .. psmc.nrStates) {
     assert(
-        approxEqual(fNextA[aij], fSinglesA[aij], lvl, 0.0),
+        approxEqual(gsl_vector_get(fNextA, a), gsl_vector_get(fSinglesA, a), lvl, 0.0),
         text(fNext, " ", fSingles)
     );
   }
@@ -309,7 +301,7 @@ unittest {
   
 unittest {
   import std.math;
-  writeln("testing propagationCoreFast and propagationCoreNaive propagateBackward ");
+  writeln("testing propagateBackward ");
   import model.propagation_core;
   auto psmc = new PSMCmodel(0.01, 0.001, 10);
   auto lvl = 1.0e-8;
@@ -334,9 +326,9 @@ unittest {
   propagationCore.propagateMultiBackward(b, bNext, right_site, left_site);
   auto bSinglesA = bSingles.vec;
   auto bNextA = bNext.vec;
-  foreach(aij; 0 .. psmc.nrStates) {
+  foreach(a; 0 .. psmc.nrStates) {
     assert(
-        approxEqual(bNextA[aij], bSinglesA[aij], lvl, 0.0),
+        approxEqual(gsl_vector_get(bNextA, a), gsl_vector_get(bSinglesA, a), lvl, 0.0),
         text(bNext, ", ", bSingles)
     );
   }

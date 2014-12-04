@@ -31,6 +31,7 @@ import model.data;
 import model.propagation_core;
 import model.stateVec;
 import model.stateVecAllocator;
+import model.gsl_matrix_vector;
 
 SegSite_t[] chop_segsites(in SegSite_t[] segsites, size_t maxDistance) {
   SegSite_t[] ret;
@@ -306,8 +307,8 @@ unittest {
   for(auto pos = L - 1; pos >= 0 && pos < L; --pos) {
     auto sum = 0.0;
     foreach(a; 0 .. T)
-      sum += psmc_hmm.forwardStates[pos].vec[a] *
-        psmc_hmm.getBackwardStateAtIndex(pos).vec[a] * 
+      sum += gsl_vector_get(psmc_hmm.forwardStates[pos].vec, a) *
+        gsl_vector_get(psmc_hmm.getBackwardStateAtIndex(pos).vec, a) * 
         psmc_hmm.scalingFactors[pos];
     
     assert(approxEqual(sum, 1.0, lvl, 0.0), text(sum));
