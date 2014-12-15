@@ -50,7 +50,7 @@ ExpectationResult_t getExpectation(in SegSite_t[][] inputData, PSMCmodel psmc, s
   
   auto cnt = 0;
   GC.disable();
-  foreach(data; taskPool.parallel(inputData)) {
+  foreach(i, data; taskPool.parallel(inputData)) {
     logInfo(format("\r  * [%s/%s] Expectation Step", ++cnt, inputData.length));
     auto result = singleChromosomeExpectation(data, hmmStrideWidth, propagationCore);
     emissions[0][] += result[1][0][];
@@ -58,6 +58,11 @@ ExpectationResult_t getExpectation(in SegSite_t[][] inputData, PSMCmodel psmc, s
     foreach(a; 0 .. psmc.nrStates)
       transitions[a][] += result[0][a][];
     logLikelihood += result[2];
+    if(i % 100 == 0) {
+        GC.enable();
+        GC.collect();
+        GC.disable();
+    }
   }
   GC.enable();
   GC.collect();
@@ -74,7 +79,6 @@ ExpectationResult_t singleChromosomeExpectation(in SegSite_t[] data, size_t hmmS
   psmc_hmm.runForward();
   auto exp = psmc_hmm.runBackward(hmmStrideWidth);
   auto logL = psmc_hmm.logLikelihood();
-  //psmc_hmm.destroy();
   return tuple(exp[0], exp[1], logL);
 }
 

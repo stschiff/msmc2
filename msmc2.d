@@ -151,6 +151,8 @@ void parseCommandLine(string[] args) {
   );
   if(nrThreads)
     std.parallelism.defaultPoolThreads(nrThreads);
+  // auto reserved = GC.reserve(20_000_000_000);
+  // stderr.writefln("reserved %s bytes for Garbage Collector", reserved);
   enforce(args.length > 1, "need at least one input file");
   enforce(hmmStrideWidth > 0, "hmmStrideWidth must be positive");
   inputFileNames = args[1 .. $];
@@ -253,10 +255,15 @@ SegSite_t[][] readDataFromFiles(string[] filenames, size_t[] indices, int[] subp
                 index_pairs ~= [indices[i], indices[j]];
     
     GC.disable();
-    foreach(filename; filenames) {
+    foreach(i, filename; filenames) {
         auto data = readSegSites(filename, index_pairs, skipAmbiguous);
         logInfo(format("read %s SNPs from file %s, using indices %s\n", data[0].length, filename, index_pairs));
         ret ~= data;
+        if(i % 10 == 0) {
+            GC.enable();
+            GC.collect();
+            GC.disable();
+        }
     }
     GC.enable();
     GC.collect();
