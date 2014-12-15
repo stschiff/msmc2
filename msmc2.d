@@ -37,6 +37,7 @@ import expectation_step;
 import maximization_step;
 import logger;
 import model.time_intervals;
+import core.memory;
 
 auto maxIterations = 20UL;
 double mutationRate;
@@ -251,11 +252,14 @@ SegSite_t[][] readDataFromFiles(string[] filenames, size_t[] indices, int[] subp
             if(subpopLabels[i] != subpopLabels[j])
                 index_pairs ~= [indices[i], indices[j]];
     
+    GC.disable();
     foreach(filename; filenames) {
         auto data = readSegSites(filename, index_pairs, skipAmbiguous);
         logInfo(format("read %s SNPs from file %s, using indices %s\n", data[0].length, filename, index_pairs));
         ret ~= data;
     }
+    GC.enable();
+    GC.collect();
     return ret;
 }
 

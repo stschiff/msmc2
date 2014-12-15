@@ -131,7 +131,8 @@ SegSite_t[][] readSegSites(string filename, size_t[2][] indices, bool skipAmbigu
         if(nrCalledSites < pos - lastPos) { // missing data
           ret[i] ~= new SegSite_t(pos - nrCalledSites, 0UL);
         }
-        allele_indices = allele_indices.uniq().array();
+        if(allele_indices.length > 1)
+            allele_indices = allele_indices.uniq().array();
         if(skipAmbiguous && allele_indices.length > 1)
           ret[i] ~= new SegSite_t(pos, 0UL);
         else
