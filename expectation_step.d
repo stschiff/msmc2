@@ -58,14 +58,10 @@ ExpectationResult_t getExpectation(in SegSite_t[][] inputData, PSMCmodel psmc, s
     foreach(a; 0 .. psmc.nrStates)
       transitions[a][] += result[0][a][];
     logLikelihood += result[2];
-    if(i % 100 == 0) {
-        GC.enable();
-        GC.collect();
-        GC.disable();
-    }
   }
   GC.enable();
   GC.collect();
+  GC.minimize();
   logInfo(format(", log likelihood: %s", logLikelihood));
   logInfo("\n");
   

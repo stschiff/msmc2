@@ -259,14 +259,10 @@ SegSite_t[][] readDataFromFiles(string[] filenames, size_t[] indices, int[] subp
         auto data = readSegSites(filename, index_pairs, skipAmbiguous);
         logInfo(format("read %s SNPs from file %s, using indices %s\n", data[0].length, filename, index_pairs));
         ret ~= data;
-        if(i % 10 == 0) {
-            GC.enable();
-            GC.collect();
-            GC.disable();
-        }
     }
     GC.enable();
     GC.collect();
+    GC.minimize();
     return ret;
 }
 
