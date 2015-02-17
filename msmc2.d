@@ -191,7 +191,8 @@ void printGlobalParams() {
   logInfo(format("initialLambdaVec:    %s\n", lambdaVec));
   logInfo(format("skipAmbiguous:       %s\n", skipAmbiguous));
   logInfo(format("indices:             %s\n", indices));
-  logInfo(format("subpopLabels:        %s\n", subpopLabels));
+  // I should print this out only once I fixed the cc-rate issue. It's confusing to the user that for one single population this variable will be = indices.
+  // logInfo(format("subpopLabels:        %s\n", subpopLabels));
   logInfo(format("logging information written to %s\n", logFileName));
   logInfo(format("loop information written to %s\n", loopFileName));
   logInfo(format("final results written to %s\n", finalFileName));
