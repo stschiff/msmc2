@@ -6,6 +6,8 @@ To install, you need a modern D compiler, for example [DMD](http://dlang.org/dow
 You also need the GNU Scientific library [GSL](http://www.gnu.org/software/gsl/) installed.
 
 You can then install the program by typing `make` in the directory.
+The resulting executable will be in the `build/release` subdirectory.
+
 You have to manually adjust the Makefile if you have the GSL in a non-trivial location on your platform.
 
     Usage: msmc2 [options] <datafiles>
@@ -23,5 +25,5 @@ You have to manually adjust the Makefile if you have the GSL in a non-trivial lo
 
 minimum command line:
 
-    msmc2 -o <out_prefix> <input_chr1> <input_chr2> ...
+    build/release/msmc2 -o <out_prefix> <input_chr1> <input_chr2> ...
 
