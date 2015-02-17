@@ -57,29 +57,20 @@ size_t nrTimeSegments;
 size_t[] indices;
 int[] subpopLabels;
 string logFileName, loopFileName, finalFileName;
-double time_factor = 0.1;
+double time_factor = 1.0;
 
-
-auto helpString = "Usage: msmc [options] <datafiles>
+auto helpString = "Usage: msmc2 [options] <datafiles>
   Options:
     -i, --maxIterations=<size_t> :      number of EM-iterations [default=20]
     -o, --outFilePrefix=<string> :      file prefix to use for all output files
-    -m, --mutationRate=<double> :       mutation rate, scaled by 2N.
-    -r, --recombinationRate=<double> :  recombination rate, scaled by 2N, to begin with
-                                        [by default set to mutationRate / 4].
+    -r, --rhoOverMu=<double> :          ratio of recombination over mutation rate (default: 0.25)
     -t, --nrThreads=<size_t> :          nr of threads to use (defaults to nr of CPUs)
     -p, --timeSegmentPattern=<string> : pattern of fixed time segments [default=1*4+25*2+1*4+1*6]
-    -R, --fixedRecombination :          keep recombination rate fixed [recommended, but not set by default]
-    -v, --verbose:                      write out the expected number of transition matrices (into a separate file)
+    -R, --fixedRecombination :          keep recombination rate fixed (rarely needed in MSMC2)
     -I, --indices:                      indices (comma-separated) of alleles in the data file to run over
     -P, --subpopLabels:                 comma-separated list of 0s and 1s to indicate subpopulations. If given, 
                                         estimate coalescence rates only across populations.
-    --skipAmbiguous:                    skip sites with ambiguous phasing. Recommended for gene flow analysis
-    --hmmStrideWidth <int> :            stride width to traverse the data in the expectation step [default=1000]
-    --initialLambdaVec <str> :          comma-separated string of lambda-values to start with. This can be used to
-                                        continue a previous run by copying the values in the last row and the third 
-                                        column of the corresponding *.loop file
-    --time_factor <double> :            factor to reduce or extent the time intervals";
+    -s, --skipAmbiguous:                skip sites with ambiguous phasing. Recommended for gene flow analysis";
 
 void main(string[] args) {
   try {
@@ -130,11 +121,12 @@ void parseCommandLine(string[] args) {
     displayHelpMessageAndExit();
   }
 
+  auto rhoOverMu = 0.25;
   getopt(args,
       std.getopt.config.caseSensitive,
       "maxIterations|i", &maxIterations,
       "mutationRate|m", &mutationRate,
-      "recombinationRate|r", &recombinationRate,
+      "rhoOverMu|r", &rhoOverMu,
       "timeSegmentPattern|p", &handleTimeSegmentPatternString,
       "nrThreads|t", &nrThreads,
       "verbose|v", &verbose,
@@ -169,8 +161,7 @@ void parseCommandLine(string[] args) {
     mutationRate = getTheta(inputData) / 2.0;
     stderr.writeln(mutationRate);
   }
-  if(isNaN(recombinationRate))
-    recombinationRate = mutationRate / 4.0;
+  recombinationRate = mutationRate * rhoOverMu;
   nrTimeSegments = timeSegmentPattern.reduce!"a+b"();
   if(lambdaVec.length > 0) {
     // this is necessary because we read in a scaled lambdaVec.
@@ -194,7 +185,6 @@ void printGlobalParams() {
   logInfo(format("recombinationRate:   %s\n", recombinationRate));
   logInfo(format("timeSegmentPattern:  %s\n", timeSegmentPattern));
   logInfo(format("nrThreads:           %s\n", nrThreads == 0 ? totalCPUs : nrThreads));
-  logInfo(format("verbose:             %s\n", verbose));
   logInfo(format("outFilePrefix:       %s\n", outFilePrefix));
   logInfo(format("hmmStrideWidth:      %s\n", hmmStrideWidth));
   logInfo(format("fixedRecombination:  %s\n", fixedRecombination));
@@ -212,7 +202,10 @@ void printGlobalParams() {
 
 void run() {
   PSMCmodel params;
-  auto timeIntervals = TimeIntervals.standardIntervals(nrTimeSegments, time_factor);
+  auto indexPairs = getIndexPairs(subpopLabels);
+  auto nrPairs = indexPairs.length;
+  auto time_constant = time_factor * 0.1 / to!double(nrPairs);
+  auto timeIntervals = TimeIntervals.standardIntervals(nrTimeSegments, time_constant);
   if(lambdaVec.length == 0)
     params = new PSMCmodel(mutationRate, recombinationRate, timeIntervals);
   else
@@ -246,13 +239,18 @@ void run() {
   printFinal(finalFileName, params);
 }
 
-SegSite_t[][] readDataFromFiles(string[] filenames, size_t[] indices, int[] subpopLabels, bool skipAmbiguous) {
-    SegSite_t[][] ret;
+size_t[2][] getIndexPairs(int[] subpopLabels) {
     size_t[2][] index_pairs;
     foreach(i; 0 .. indices.length - 1)
         foreach(j; i + 1 .. indices.length)
             if(subpopLabels[i] != subpopLabels[j])
                 index_pairs ~= [indices[i], indices[j]];
+    return index_pairs;
+}
+
+SegSite_t[][] readDataFromFiles(string[] filenames, size_t[] indices, int[] subpopLabels, bool skipAmbiguous) {
+    SegSite_t[][] ret;
+    auto index_pairs = getIndexPairs(subpopLabels);
     
     GC.disable();
     foreach(i, filename; filenames) {
