@@ -63,6 +63,11 @@ auto helpString = "Usage: msmc2 [options] <datafiles>
   Options:
     -i, --maxIterations=<size_t> :      number of EM-iterations [default=20]
     -o, --outFilePrefix=<string> :      file prefix to use for all output files
+    -m, --theta=<double> :              fix the scaled mutation rate, by default determined by the number of 
+                                        segregating sites. This option determines the exact placement of the time
+                                        segment boundaries. For a cross-population analysis, you need three independent 
+                                        msmc runs, and you should use this option to ensure the same time boundaries in 
+                                        each run, see documentation.
     -r, --rhoOverMu=<double> :          ratio of recombination over mutation rate (default: 0.25)
     -t, --nrThreads=<size_t> :          nr of threads to use (defaults to nr of CPUs)
     -p, --timeSegmentPattern=<string> : pattern of fixed time segments [default=1*4+25*2+1*4+1*6]
@@ -70,7 +75,7 @@ auto helpString = "Usage: msmc2 [options] <datafiles>
     -I, --indices:                      indices (comma-separated) of alleles in the data file to run over
     -P, --subpopLabels:                 comma-separated list of 0s and 1s to indicate subpopulations. If given, 
                                         estimate coalescence rates only across populations.
-    -s, --skipAmbiguous:                skip sites with ambiguous phasing. Recommended for gene flow analysis";
+    -s, --skipAmbiguous:                skip sites with ambiguous phasing. Recommended for cross population analysis";
 
 void main(string[] args) {
   try {
@@ -125,7 +130,7 @@ void parseCommandLine(string[] args) {
   getopt(args,
       std.getopt.config.caseSensitive,
       "maxIterations|i", &maxIterations,
-      "mutationRate", &mutationRate,
+      "theta|m", &mutationRate,
       "rhoOverMu|r", &rhoOverMu,
       "timeSegmentPattern|p", &handleTimeSegmentPatternString,
       "nrThreads|t", &nrThreads,
