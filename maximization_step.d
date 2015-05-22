@@ -22,6 +22,7 @@ import std.stdio;
 import std.random;
 import std.exception;
 import std.algorithm;
+import std.string;
 import model.psmc_model;
 import powell;
 import logger;
