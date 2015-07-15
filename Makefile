@@ -1,6 +1,6 @@
 release : build/release/msmc2
 
-all: debug release
+all: debug release decode
 
 debug : build/debug/msmc2
 
@@ -17,7 +17,12 @@ build/release/msmc2 : model/*.d powell.d brent.d maximization_step.d expectation
 
 build/debug/unittest : model/*.d
 	dmd -unittest -L-lgsl -L-lgslcblas -main -odbuild/debug -ofbuild/debug/unittest $^
-	
+
+decode : build/decode
+
+build/decode : model/*.d decode.d 
+	dmd -O -L-lgsl -L-lgslcblas -release -odbuild/decode -of$@ $^
+
 clean :
 	rm -rf build/debug/* build/release/*
 

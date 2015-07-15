@@ -48,8 +48,8 @@ class PSMCmodel {
     this(mutationRate, recombinationRate, lambdaVec_, timeIntervals);
   }
 
-  this(double mutationRate, double recombinationRate, in double[] lambdaVec, size_t nrTimeIntervals) {
-    auto timeIntervals_ = TimeIntervals.standardIntervals(nrTimeIntervals);
+  this(double mutationRate, double recombinationRate, in double[] lambdaVec) {
+    auto timeIntervals_ = TimeIntervals.standardIntervals(lambdaVec.length);
     this(mutationRate, recombinationRate, lambdaVec, timeIntervals_);
   }
   
