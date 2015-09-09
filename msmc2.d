@@ -42,7 +42,8 @@ import core.memory;
 auto maxIterations = 20UL;
 double mutationRate;
 double recombinationRate;
-auto timeSegmentPattern = [4UL, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 6];
+// auto timeSegmentPattern = [4UL, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 6];
+auto timeSegmentPattern = [2UL, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3];
 uint nrThreads;
 auto verbose = false;
 string outFilePrefix;
@@ -70,7 +71,7 @@ auto helpString = "Usage: msmc2 [options] <datafiles>
                                         each run, see documentation.
     -r, --rhoOverMu=<double> :          ratio of recombination over mutation rate (default: 0.25)
     -t, --nrThreads=<size_t> :          nr of threads to use (defaults to nr of CPUs)
-    -p, --timeSegmentPattern=<string> : pattern of fixed time segments [default=1*4+25*2+1*4+1*6]
+    -p, --timeSegmentPattern=<string> : pattern of fixed time segments [default=1*2+25*1+1*2+1*3]
     -R, --fixedRecombination :          keep recombination rate fixed (rarely needed in MSMC2)
     -I, --indices:                      indices (comma-separated) of alleles in the data file to run over
     -P, --subpopLabels:                 comma-separated list of 0s and 1s to indicate subpopulations. If given, 

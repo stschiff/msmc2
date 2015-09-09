@@ -21,7 +21,7 @@ build/debug/unittest : model/*.d
 decode : build/decode
 
 build/decode : model/*.d decode.d 
-	dmd -O -L-lgsl -L-lgslcblas -release -odbuild/decode -of$@ $^
+	dmd -O -L-lgsl -L-lgslcblas -release -odbuild -of$@ $^
 
 clean :
 	rm -rf build/debug/* build/release/*
