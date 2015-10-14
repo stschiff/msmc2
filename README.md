@@ -33,7 +33,7 @@ minimum command line:
     build/release/msmc2 -o <out_prefix> <input_chr1> <input_chr2> ...
 
 #Brief Guide
-For populaton size estimation, you can basically use `msmc2` just as you used `msmc`, using the same input files. Note there are some important changes to `msmc`: First, it is not anymore necessary to fix the recombination size for more than two haplotypes. So I would run without the `-R` switch (which was recommended in `msmc`). Second, the time patterning has changed. We now use the same patterning as in (Li and Durbin, 2011), however with more and more resolution in recent times depending on the number of haplotypes you use.
+For population size estimation, you can basically use `msmc2` just as you used `msmc`, using the same input files. Note there are some important changes to `msmc`: First, it is not anymore necessary to fix the recombination size for more than two haplotypes. So I would run without the `-R` switch (which was recommended in `msmc`). Second, the time patterning has changed. We now use the same patterning as in (Li and Durbin, 2011), however with more and more resolution in recent times depending on the number of haplotypes you use.
 
 For cross-population analysis, things are quite different now. While in `msmc`, you could estimate all three coalescence rate functions (two within and one across populations) in one go, now you have to make three runs, corresponding to the three estimates. For example, say you have four diploid individuals, two from each population, you should generate a combined input file with eight haplotypes (see msmc and msmc-tools repositories), and then start three runs:
 
