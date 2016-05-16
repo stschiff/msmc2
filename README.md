@@ -1,8 +1,8 @@
-*Disclaimer: This software is still under development and mainly for internal use only at the moment.*
+This program implements MSMC2, a method to infer population size history and population separation history from whole genome sequencing data. For a general guide, please refer to version 1: https://github.com/stschiff/msmc
 
-This program implements MSMC2, a method to infer population size history and population separation history from whole genome sequencing data.
+Binaries are attached to the releases (under the "Releases" tab within github).
 
-To install, you need a modern D compiler, for example [DMD](http://dlang.org/download.html).
+To build yourself, you need a modern D compiler, for example [DMD](http://dlang.org/download.html).
 You also need the GNU Scientific library [GSL](http://www.gnu.org/software/gsl/) installed.
 
 You can then install the program by typing `make` in the directory.
