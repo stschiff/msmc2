@@ -60,7 +60,7 @@ int[] subpopLabels;
 string logFileName, loopFileName, finalFileName;
 double time_factor = 1.0;
 
-auto helpString = "Usage: msmc2 [options] <datafiles>
+auto helpString = "This is version 2.0.0. Usage: msmc2 [options] <datafiles>
   Options:
     -i, --maxIterations=<size_t> :      number of EM-iterations [default=20]
     -o, --outFilePrefix=<string> :      file prefix to use for all output files
