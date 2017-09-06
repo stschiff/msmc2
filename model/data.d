@@ -23,7 +23,7 @@ import std.string;
 import std.conv;
 import std.algorithm;
 import std.math;
-import std.c.stdlib;
+import core.stdc.stdlib;
 import std.regex : match, regex, ctRegex;
 import std.exception;
 import std.range;
