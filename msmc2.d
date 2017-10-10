@@ -29,7 +29,7 @@ import std.file;
 import std.typecons;
 import std.regex;
 import std.exception;
-import std.c.stdlib;
+import core.stdc.stdlib;
 import std.range;
 import model.data;
 import model.psmc_model;
@@ -61,7 +61,10 @@ string logFileName, loopFileName, finalFileName;
 double time_factor = 1.0;
 bool quantileBoundaries = false;
 
-auto helpString = "This is version 2.0.0. Usage: msmc2 [options] <datafiles>
+immutable versionString = "2.0.2";
+
+
+auto helpString = format("This is version %s. Usage: msmc2 [options] <datafiles>
   Options:
     -i, --maxIterations=<size_t> :      number of EM-iterations [default=20]
     -o, --outFilePrefix=<string> :      file prefix to use for all output files
@@ -79,7 +82,7 @@ auto helpString = "This is version 2.0.0. Usage: msmc2 [options] <datafiles>
                                         estimate coalescence rates only across populations.
     -s, --skipAmbiguous:                skip sites with ambiguous phasing. Recommended for cross population analysis
     --quantileBoundaries:               use quantile boundaries, as in MSMC. To fully replicate MSMC's time intervals,
-                                        combine this with -p 10*1+15*2";
+                                        combine this with -p 10*1+15*2", versionString);
 
 void main(string[] args) {
   try {
@@ -189,6 +192,7 @@ void parseCommandLine(string[] args) {
 }
 
 void printGlobalParams() {
+  logInfo(format("Version:             %s\n", versionString));
   logInfo(format("input files:         %s\n", inputFileNames));
   logInfo(format("maxIterations:       %s\n", maxIterations));
   logInfo(format("mutationRate:        %s\n", mutationRate));

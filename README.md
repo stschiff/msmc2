@@ -1,3 +1,5 @@
+DISCLAIMER: MSMC2 is under development. Use at your own risk!
+
 This program implements MSMC2, a method to infer population size history and population separation history from whole genome sequencing data. For a general guide, please refer to version 1: https://github.com/stschiff/msmc
 
 Binaries are attached to the releases (under the "Releases" tab within github).
