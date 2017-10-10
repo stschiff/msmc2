@@ -59,6 +59,7 @@ size_t[] indices;
 int[] subpopLabels;
 string logFileName, loopFileName, finalFileName;
 double time_factor = 1.0;
+bool quantileBoundaries = false;
 
 auto helpString = "This is version 2.0.0. Usage: msmc2 [options] <datafiles>
   Options:
@@ -76,7 +77,9 @@ auto helpString = "This is version 2.0.0. Usage: msmc2 [options] <datafiles>
     -I, --indices:                      indices (comma-separated) of alleles in the data file to run over
     -P, --subpopLabels:                 comma-separated list of 0s and 1s to indicate subpopulations. If given, 
                                         estimate coalescence rates only across populations.
-    -s, --skipAmbiguous:                skip sites with ambiguous phasing. Recommended for cross population analysis";
+    -s, --skipAmbiguous:                skip sites with ambiguous phasing. Recommended for cross population analysis
+    --quantileBoundaries:               use quantile boundaries, as in MSMC. To fully replicate MSMC's time intervals,
+                                        combine this with -p 10*1+15*2";
 
 void main(string[] args) {
   try {
@@ -145,7 +148,8 @@ void parseCommandLine(string[] args) {
       "initialLambdaVec", &handleLambdaVecString,
       "treeFileNames", &handleTreeFileNames,
       "time_factor", &time_factor,
-      "subpopLabels|P", &handleSubpopLabels
+      "subpopLabels|P", &handleSubpopLabels,
+      "quantileBoundaries", &quantileBoundaries
   );
   if(nrThreads)
     std.parallelism.defaultPoolThreads(nrThreads);
@@ -213,6 +217,11 @@ void run() {
   auto nrPairs = indexPairs.length;
   auto time_constant = time_factor * 0.1 / to!double(nrPairs);
   auto timeIntervals = TimeIntervals.standardIntervals(nrTimeSegments, time_constant);
+  if(quantileBoundaries) {
+    time_constant = time_factor / to!double(nrPairs);
+    auto b = TimeIntervals.getQuantileBoundaries(nrTimeSegments, time_constant);
+    timeIntervals = new TimeIntervals(b);
+  }
   if(lambdaVec.length == 0)
     params = new PSMCmodel(mutationRate, recombinationRate, timeIntervals);
   else
