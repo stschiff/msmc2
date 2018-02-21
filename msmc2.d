@@ -55,8 +55,7 @@ SegSite_t[][] inputData;
 size_t hmmStrideWidth = 1000;
 double[] lambdaVec;
 size_t nrTimeSegments;
-size_t[] indices;
-int[] subpopLabels;
+size_t[2][] pairIndices;
 string logFileName, loopFileName, finalFileName;
 double time_factor = 1.0;
 bool quantileBoundaries = false;
@@ -68,21 +67,33 @@ auto helpString = format("This is version %s. Usage: msmc2 [options] <datafiles>
   Options:
     -i, --maxIterations=<size_t> :      number of EM-iterations [default=20]
     -o, --outFilePrefix=<string> :      file prefix to use for all output files
-    -m, --theta=<double> :              fix the scaled mutation rate, by default determined by the number of 
-                                        segregating sites. This option determines the exact placement of the time
-                                        segment boundaries. For a cross-population analysis, you need three independent 
-                                        msmc runs, and you should use this option to ensure the same time boundaries in 
-                                        each run, see documentation.
-    -r, --rhoOverMu=<double> :          ratio of recombination over mutation rate (default: 0.25)
+    -r, --rhoOverMu=<double> :          initial ratio of recombination over mutation rate (default: 
+                                        0.25)
     -t, --nrThreads=<size_t> :          nr of threads to use (defaults to nr of CPUs)
     -p, --timeSegmentPattern=<string> : pattern of fixed time segments [default=1*2+25*1+1*2+1*3]
     -R, --fixedRecombination :          keep recombination rate fixed (rarely needed in MSMC2)
-    -I, --indices:                      indices (comma-separated) of alleles in the data file to run over
-    -P, --subpopLabels:                 comma-separated list of 0s and 1s to indicate subpopulations. If given, 
-                                        estimate coalescence rates only across populations.
-    -s, --skipAmbiguous:                skip sites with ambiguous phasing. Recommended for cross population analysis
-    --quantileBoundaries:               use quantile boundaries, as in MSMC. To fully replicate MSMC's time intervals,
-                                        combine this with -p 10*1+15*2", versionString);
+    -I, --pairIndices:                  this can be given in two flavors. First, you can enter a 
+                                        single comma-separated list surrounded by square brackets, 
+                                        like this \"-I 0,1,4,5\". In this case, the program will 
+                                        run over all pairs of haplotypes within this set of 
+                                        indices. This is useful for running on multiple phased 
+                                        diploid genomes sampled from one population.
+                                        In the second flavor, you can give a list of pairs, like 
+                                        this: \"-I 0-1,2-3,4-5\". In this case, the 
+                                        program will run only those specified pairs. This can be 
+                                        used to run on a number of unphased genomes, to avoid pairs 
+                                        of haplotypes from different individuals. This should also 
+                                        be used to indicate a cross-population run, where you want 
+                                        to run the program only over pairs of haplotypes across 
+                                        population boundaries. So with two phased genomes, one from 
+                                        each population you'd run \"-I 0-2,0-3,1-2,1-3\", and the 
+                                        program would run only those four pairs of haplotypes.
+                                        Note that if you do not use this parameter altogether, 
+                                        MSMC2 will run on all pairs of input haplotypes.
+    -s, --skipAmbiguous:                skip sites with ambiguous phasing. Recommended for cross 
+                                        population analysis
+    --quantileBoundaries:               use quantile boundaries, as in MSMC. To fully replicate 
+                                        MSMC's time intervals, combine this with -p 10*1+15*2",     versionString);
 
 void main(string[] args) {
   try {
@@ -122,13 +133,22 @@ void parseCommandLine(string[] args) {
   }
   
   void handleIndices(string option, string value) {
-    indices = std.string.split(value, ",").map!"a.to!size_t()"().array();
+    try {
+      auto hapIndices = std.string.split(value, ",").map!"a.to!size_t()"().array();
+      foreach(i; hapIndices[0..$-1])
+        foreach(j; hapIndices[i..$])
+          pairIndices ~= [i, j];
+    }
+    catch(ConvException e) {
+      auto pairIndexSubStrings = std.string.split(value, ",");
+      foreach(subStr; pairIndexSubStrings) {
+        auto indexPair = std.string.split(subStr, "-").map!"a.to!size_t()"().array();
+        enforce(indexPair.length == 2, "cannot parse pairIndices");
+        pairIndices ~= [indexPair[0], indexPair[1]];
+      }
+    }
   }
 
-  void handleSubpopLabels(string option, string value) {
-    subpopLabels = std.string.split(value, ",").map!"a.to!int()"().array();
-  }
-  
   if(args.length == 1) {
     displayHelpMessageAndExit();
   }
@@ -143,7 +163,7 @@ void parseCommandLine(string[] args) {
       "nrThreads|t", &nrThreads,
       "verbose", &verbose,
       "outFilePrefix|o", &outFilePrefix,
-      "indices|I", &handleIndices,
+      "pairIndices|I", &handleIndices,
       "skipAmbiguous|s", &skipAmbiguous,
       "help|h", &displayHelpMessageAndExit,
       "hmmStrideWidth", &hmmStrideWidth,
@@ -151,7 +171,6 @@ void parseCommandLine(string[] args) {
       "initialLambdaVec", &handleLambdaVecString,
       "treeFileNames", &handleTreeFileNames,
       "time_factor", &time_factor,
-      "subpopLabels|P", &handleSubpopLabels,
       "quantileBoundaries", &quantileBoundaries
   );
   if(nrThreads)
@@ -161,14 +180,13 @@ void parseCommandLine(string[] args) {
   enforce(args.length > 1, "need at least one input file");
   enforce(hmmStrideWidth > 0, "hmmStrideWidth must be positive");
   inputFileNames = args[1 .. $];
-  if(indices.length == 0) {
+  if(pairIndices.length == 0) {
     auto nrHaplotypes = getNrHaplotypesFromFile(inputFileNames[0]);
-    indices = iota(nrHaplotypes).array();
+    foreach(i; 0..(nrHaplotypes - 1))
+      foreach(j; (i+1)..nrHaplotypes)
+        pairIndices ~= [i, j];
   }
-  if(subpopLabels.length == 0)
-    subpopLabels = indices.map!"a.to!int()"().array();
-  enforce(subpopLabels.length == indices.length, "subpopLabels must have same lengths as nr of haplotypes");
-  inputData = readDataFromFiles(inputFileNames, indices, subpopLabels, skipAmbiguous);
+  inputData = readDataFromFiles(inputFileNames, pairIndices, skipAmbiguous);
   if(isNaN(mutationRate)) {
     stderr.write("estimating mutation rate: ");
     mutationRate = getTheta(inputData) / 2.0;
@@ -192,33 +210,30 @@ void parseCommandLine(string[] args) {
 }
 
 void printGlobalParams() {
-  logInfo(format("Version:             %s\n", versionString));
-  logInfo(format("input files:         %s\n", inputFileNames));
-  logInfo(format("maxIterations:       %s\n", maxIterations));
-  logInfo(format("mutationRate:        %s\n", mutationRate));
-  logInfo(format("recombinationRate:   %s\n", recombinationRate));
-  logInfo(format("timeSegmentPattern:  %s\n", timeSegmentPattern));
-  logInfo(format("nrThreads:           %s\n", nrThreads == 0 ? totalCPUs : nrThreads));
-  logInfo(format("outFilePrefix:       %s\n", outFilePrefix));
-  logInfo(format("hmmStrideWidth:      %s\n", hmmStrideWidth));
-  logInfo(format("fixedRecombination:  %s\n", fixedRecombination));
-  logInfo(format("initialLambdaVec:    %s\n", lambdaVec));
-  logInfo(format("skipAmbiguous:       %s\n", skipAmbiguous));
-  logInfo(format("indices:             %s\n", indices));
-  // I should print this out only once I fixed the cc-rate issue. It's confusing to the user that for one single population this variable will be = indices.
-  logInfo(format("subpopLabels:        %s\n", subpopLabels));
+  logInfo(format("Version:                       %s\n", versionString));
+  logInfo(format("input files:                   %s\n", inputFileNames));
+  logInfo(format("maxIterations:                 %s\n", maxIterations));
+  logInfo(format("mutationRate:                  %s\n", mutationRate));
+  logInfo(format("recombinationRate:             %s\n", recombinationRate));
+  logInfo(format("timeSegmentPattern:            %s\n", timeSegmentPattern));
+  logInfo(format("nrThreads:                     %s\n", nrThreads == 0 ? totalCPUs : nrThreads));
+  logInfo(format("outFilePrefix:                 %s\n", outFilePrefix));
+  logInfo(format("hmmStrideWidth:                %s\n", hmmStrideWidth));
+  logInfo(format("fixedRecombination:            %s\n", fixedRecombination));
+  logInfo(format("initialLambdaVec:              %s\n", lambdaVec));
+  logInfo(format("skipAmbiguous:                 %s\n", skipAmbiguous));
+  logInfo(format("pairIndices:                   %s\n", pairIndices));
   logInfo(format("logging information written to %s\n", logFileName));
-  logInfo(format("loop information written to %s\n", loopFileName));
-  logInfo(format("final results written to %s\n", finalFileName));
-  logInfo(format("time factor:         %s\n", time_factor));
+  logInfo(format("loop information written to    %s\n", loopFileName));
+  logInfo(format("final results written to       %s\n", finalFileName));
+  logInfo(format("time factor:                   %s\n", time_factor));
   if(verbose)
     logInfo(format("transition matrices written to %s.loop_*.expectationMatrix.txt\n", outFilePrefix));
 }
 
 void run() {
   PSMCmodel params;
-  auto indexPairs = getIndexPairs(subpopLabels);
-  auto nrPairs = indexPairs.length;
+  auto nrPairs = pairIndices.length;
   auto time_constant = time_factor * 0.1 / to!double(nrPairs);
   auto timeIntervals = TimeIntervals.standardIntervals(nrTimeSegments, time_constant);
   if(quantileBoundaries) {
@@ -259,23 +274,14 @@ void run() {
   printFinal(finalFileName, params);
 }
 
-size_t[2][] getIndexPairs(int[] subpopLabels) {
-    size_t[2][] index_pairs;
-    foreach(i; 0 .. indices.length - 1)
-        foreach(j; i + 1 .. indices.length)
-            if(subpopLabels[i] != subpopLabels[j])
-                index_pairs ~= [indices[i], indices[j]];
-    return index_pairs;
-}
-
-SegSite_t[][] readDataFromFiles(string[] filenames, size_t[] indices, int[] subpopLabels, bool skipAmbiguous) {
+SegSite_t[][] readDataFromFiles(string[] filenames, size_t[2][] indexPairs, bool skipAmbiguous) {
     SegSite_t[][] ret;
-    auto index_pairs = getIndexPairs(subpopLabels);
     
     GC.disable();
     foreach(i, filename; filenames) {
-        auto data = readSegSites(filename, index_pairs, skipAmbiguous);
-        logInfo(format("read %s SNPs from file %s, using indices %s\n", data[0].length, filename, index_pairs));
+        auto data = readSegSites(filename, indexPairs, skipAmbiguous);
+        logInfo(format("read %s SNPs from file %s, using indices %s\n", data[0].length, filename, 
+          indexPairs));
         ret ~= data;
         if(i % 10 == 0) {
             GC.enable();
