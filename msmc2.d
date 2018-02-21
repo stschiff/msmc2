@@ -73,8 +73,8 @@ auto helpString = format("This is version %s. Usage: msmc2 [options] <datafiles>
     -p, --timeSegmentPattern=<string> : pattern of fixed time segments [default=1*2+25*1+1*2+1*3]
     -R, --fixedRecombination :          keep recombination rate fixed (rarely needed in MSMC2)
     -I, --pairIndices:                  this can be given in two flavors. First, you can enter a 
-                                        single comma-separated list surrounded by square brackets, 
-                                        like this \"-I 0,1,4,5\". In this case, the program will 
+                                        single comma-separated list like this \"-I 0,1,4,5\".
+                                        In this case, the program will 
                                         run over all pairs of haplotypes within this set of 
                                         indices. This is useful for running on multiple phased 
                                         diploid genomes sampled from one population.
