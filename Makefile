@@ -1,5 +1,5 @@
 # Set this variable to your static gsl libraries
-GSLDIR=/usr/lib
+GSLDIR=/usr/local/lib
 GSL=${GSLDIR}/libgsl.a ${GSLDIR}/libgslcblas.a
 
 release : build/release/msmc2

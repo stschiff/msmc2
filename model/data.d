@@ -53,8 +53,8 @@ class SegSite_t {
 }
 
 void checkDataLine(const char[] line) {
-  auto r = regex(r"^\w+\s\d+\s\d+\s[ACTG01\?,]+$");
-  enforce(match(line, r));
+  auto r = regex(r"^[A-Za-z0-9_.]+\s\d+\s\d+\s[ACTG01\?,]+$");
+  enforce(match(line, r), text("could not parse line: ", line));
 }
 
 unittest {
