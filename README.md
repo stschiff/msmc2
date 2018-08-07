@@ -41,9 +41,9 @@ For cross-population analysis, things are quite different now. While in `msmc`, 
 
 1. `build/release/msmc2 -I 0,1,2,3 -o within1_msmc <input_chr1> <input_chr2> ...`
 2. `build/release/msmc2 -I 4,5,6,7 -o within2_msmc <input_chr1> <input_chr2> ...`
-3. `build/release/msmc2 -P 0,0,0,0,1,1,1,1 -o across_msmc <input_chr1> <input_chr2> ...`
+3. `build/release/msmc2 -I 0-4,0-5,0-6,0-7,1-4,1-5,1-6,1-7,2-4,2-5,2-6,2-7,3-4,3-5,3-6,3-7 -o across_msmc <input_chr1> <input_chr2> ...`
 
-The first two runs just estimate coalescence rates within each population. The third run selects only the 16 cross-population pairs (using the `-P` switch) to estimate the cross-coalescence rate.
+The first two runs just estimate coalescence rates within each population. The third run selects only the 16 cross-population pairs to estimate the cross-coalescence rate.
 
 Finally, you can generate a combined msmc output file using the combineCrossCoal.py script from the msmc-tools repository:
     
