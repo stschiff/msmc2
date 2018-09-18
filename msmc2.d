@@ -135,9 +135,9 @@ void parseCommandLine(string[] args) {
   void handleIndices(string option, string value) {
     try {
       auto hapIndices = std.string.split(value, ",").map!"a.to!size_t()"().array();
-      foreach(i; hapIndices[0..$-1])
-        foreach(j; hapIndices[i..$])
-          pairIndices ~= [i, j];
+      foreach(i; 0..(hapIndices.length - 1))
+        foreach(j; (i + 1)..hapIndices.length)
+          pairIndices ~= [hapIndices[i], hapIndices[j]];
     }
     catch(ConvException e) {
       auto pairIndexSubStrings = std.string.split(value, ",");
