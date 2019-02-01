@@ -20,11 +20,13 @@
 import std.stdio;
 import std.getopt;
 import std.exception;
-import std.c.stdlib;
+import core.stdc.stdlib;
 import std.algorithm;
 import std.parallelism;
 import std.array;
 import std.conv;
+import std.regex;
+import std.range;
 import model.psmc_hmm;
 import model.data;
 import model.psmc_model;
@@ -55,12 +57,12 @@ void main(string[] args) {
 void parseCommandlineArgs(string[] args) {
   
   void handleIndices(string option, string value) {
-    indices = std.string.split(value, ",").map!"a.to!size_t()"().array();
+    indices = split(value, ",").map!"a.to!size_t()"().array();
   }
   
   void handleLambdaVecString(string option, string lambdaString) {
     enforce(match(lambdaString, r"^[\d.]+[,[\d.]+]+"), text("illegal array string: ", lambdaString));
-    lambdaVec = std.string.split(lambdaString, ",").map!"to!double(a)"().array();
+    lambdaVec = split(lambdaString, ",").map!"to!double(a)"().array();
   }
   
   getopt(args,
@@ -125,6 +127,7 @@ void decodeWithHmm(PSMC_hmm hmm) {
   auto backwardState = hmm.propagationCore.newBackwardState();
   
   double[][] posteriors;
+  double [] positions;
   for(size_t pos = hmm.segsites[$ - 1].pos; pos > hmm.segsites[0].pos && pos <= hmm.segsites[$ - 1].pos; pos -= stride)
   {
     hmm.getForwardState(forwardState, pos);
@@ -135,11 +138,13 @@ void decodeWithHmm(PSMC_hmm hmm) {
     auto norm = posterior.reduce!"a+b"();
     posterior[] /= norm;
     posteriors ~= posterior;
+    positions ~= pos;
   }
   
-  foreach_reverse(posterior; posteriors) {
-    foreach(p; posterior)
-      write(p, " ");
+  foreach_reverse(e; zip(positions, posteriors)) {
+    write(e[0], "\t");
+    foreach(p; e[1])
+      write(p, "\t");
     writeln("");
   } 
 }
