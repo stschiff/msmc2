@@ -16,19 +16,33 @@ Options:
 
     -i, --maxIterations=<size_t> :      number of EM-iterations [default=20]
     -o, --outFilePrefix=<string> :      file prefix to use for all output files
-    -m, --theta=<double> :              fix the scaled mutation rate, by default determined by the number of 
-                                        segregating sites. This option determines the exact placement of the time
-                                        segment boundaries. For a cross-population analysis, you need three independent 
-                                        msmc runs, and you should use this option to ensure the same time boundaries in 
-                                        each run, see documentation.
-    -r, --rhoOverMu=<double> :          ratio of recombination over mutation rate (default: 0.25)
+    -r, --rhoOverMu=<double> :          initial ratio of recombination over mutation rate (default:
+                                        0.25)
     -t, --nrThreads=<size_t> :          nr of threads to use (defaults to nr of CPUs)
     -p, --timeSegmentPattern=<string> : pattern of fixed time segments [default=1*2+25*1+1*2+1*3]
     -R, --fixedRecombination :          keep recombination rate fixed (rarely needed in MSMC2)
-    -I, --indices:                      indices (comma-separated) of alleles in the data file to run over
-    -P, --subpopLabels:                 comma-separated list of 0s and 1s to indicate subpopulations. If given, 
-                                        estimate coalescence rates only across populations.
-    -s, --skipAmbiguous:                skip sites with ambiguous phasing. Recommended for cross population analysis"
+    -I, --pairIndices:                  this can be given in two flavors. First, you can enter a
+                                        single comma-separated list like this "-I 0,1,4,5".
+                                        In this case, the program will
+                                        run over all pairs of haplotypes within this set of
+                                        indices. This is useful for running on multiple phased
+                                        diploid genomes sampled from one population.
+                                        In the second flavor, you can give a list of pairs, like
+                                        this: "-I 0-1,2-3,4-5". In this case, the
+                                        program will run only those specified pairs. This can be
+                                        used to run on a number of unphased genomes, to avoid pairs
+                                        of haplotypes from different individuals. This should also
+                                        be used to indicate a cross-population run, where you want
+                                        to run the program only over pairs of haplotypes across
+                                        population boundaries. So with two phased genomes, one from
+                                        each population you'd run "-I 0-2,0-3,1-2,1-3", and the
+                                        program would run only those four pairs of haplotypes.
+                                        Note that if you do not use this parameter altogether,
+                                        MSMC2 will run on all pairs of input haplotypes.
+    -s, --skipAmbiguous:                skip sites with ambiguous phasing. Recommended for cross
+                                        population analysis
+    --quantileBoundaries:               use quantile boundaries, as in MSMC. To fully replicate
+                                        MSMC's time intervals, combine this with -p 10*1+15*2
 
 minimum command line:
 
