@@ -63,6 +63,10 @@ void parseCommandlineArgs(string[] args) {
   void handleLambdaVecString(string option, string lambdaString) {
     enforce(match(lambdaString, r"^[\d.]+[,[\d.]+]+"), text("illegal array string: ", lambdaString));
     lambdaVec = split(lambdaString, ",").map!"to!double(a)"().array();
+    stderr.writeln("loaded lambdaVec with length ", lambdaVec.length);
+    if(lambdaVec.length != nrTimeSegments)
+      stderr.writeln("Lambda Vector is expected to have length ", nrTimeSegments);
+    enforce(lambdaVec.length == nrTimeSegments);
   }
   
   getopt(args,
@@ -140,7 +144,14 @@ void decodeWithHmm(PSMC_hmm hmm) {
     posteriors ~= posterior;
     positions ~= pos;
   }
-  
+
+  auto timeBoundaries = hmm.propagationCore.psmc.timeIntervals.boundaries.dup;
+  timeBoundaries[0] = 0.0;
+  write("#time_boundaries:\t");
+  foreach(t; timeBoundaries[0 .. $ - 1])
+      write(t, "\t");
+  writeln("");
+
   foreach_reverse(e; zip(positions, posteriors)) {
     write(e[0], "\t");
     foreach(p; e[1])
