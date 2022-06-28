@@ -1,6 +1,9 @@
-DISCLAIMER: MSMC2 is under development. Use at your own risk!
+This program implements MSMC2, a method to infer population size history and population separation history from whole genome sequencing data. For a general guide, please refer to version 1: https://github.com/stschiff/msmc.
 
-This program implements MSMC2, a method to infer population size history and population separation history from whole genome sequencing data. For a general guide, please refer to version 1: https://github.com/stschiff/msmc
+For reference see the following two publications:
+
+* Schiffels, Stephan, and Ke Wang. 2020. “MSMC and MSMC2: The Multiple Sequentially Markovian Coalescent.” In Statistical Population Genomics, edited by Julien Y. Dutheil, 2090:147–66. Methods in Molecular Biology. New York, NY: Springer US.
+* Wang, Ke, Iain Mathieson, Jared O’Connell, and Stephan Schiffels. 2020. “Tracking Human Population Structure through Time from Whole Genome Sequences.” PLoS Genetics 16 (3): e1008552.
 
 Binaries are attached to the releases (under the "Releases" tab within github).
 
