@@ -100,7 +100,7 @@ void main(string[] args) {
     parseCommandLine(args);
   }
   catch(Exception e) {
-    stderr.writeln("error in parsing command line: ", e);
+    stderr.writeln("error in parsing command line: ", e.msg);
     exit(0);
   }
   run();
