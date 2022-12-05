@@ -100,7 +100,7 @@ class TransitionRate {
     in {
       assert(a < b);
     }
-  body {
+  do {
     auto meanTime = timeIntervals.meanTimeWithLambda(b, lambdaVec[b]);
     double integ = (1.0 - exp(-(timeIntervals.delta(a) * 2.0 * lambdaVec[a]))) / (2.0 * lambdaVec[a]);
     double sum = 0.0;
@@ -119,7 +119,7 @@ class TransitionRate {
     in {
       assert(a > b);
     }
-  body {
+  do {
     auto meanTime = timeIntervals.meanTimeWithLambda(b, lambdaVec[b]);
     double integ = integrateLambda(meanTime, timeIntervals.leftBoundary(a), b, a) / 
                    lambdaVec[a] * (1.0 - exp(-timeIntervals.delta(a) * lambdaVec[a]));

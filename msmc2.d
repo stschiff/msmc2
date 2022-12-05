@@ -60,7 +60,7 @@ string logFileName, loopFileName, finalFileName;
 double time_factor = 1.0;
 bool quantileBoundaries = false;
 
-immutable versionString = "2.1.1";
+immutable versionString = "2.1.4";
 
 
 auto helpString = format("This is version %s. Usage: msmc2 [options] <datafiles>

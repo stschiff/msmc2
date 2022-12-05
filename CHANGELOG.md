@@ -1,0 +1,1 @@
+v2.1.4: Fixed deprecation warnings with latest D compiler (v2.100.2).

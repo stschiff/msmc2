@@ -126,7 +126,7 @@ class PropagationCore {
   in {
     assert(to_segsite.pos == from_segsite.pos + 1);
   }
-  body {
+  do {
     gsl_blas_dgemv(CBLAS_TRANSPOSE_t.CblasNoTrans, 1.0, transitionMatrix, from.vec, 0.0, to.vec);
     foreach(a; 0 .. psmc.nrStates) {
         auto val = gsl_vector_get(to.vec, a) * fullE(to_segsite, a);
@@ -139,7 +139,7 @@ class PropagationCore {
   in {
     assert(to_segsite.pos == from_segsite.pos + 1);
   }
-  body {
+  do {
     gsl_blas_dgemv(CBLAS_TRANSPOSE_t.CblasTrans, 1.0, transitionMatrix, to.vecE, 0.0, from.vec);
     foreach(a; 0 .. psmc.nrStates) {
         auto val = gsl_vector_get(from.vec, a) * fullE(from_segsite, a);
@@ -153,7 +153,7 @@ class PropagationCore {
     assert(to_segsite.pos > from_segsite.pos);
     assert(to_segsite.obs[0] < 2);
   }
-  body {
+  do {
     auto dist = to_segsite.pos - from_segsite.pos;
       if(to_segsite.obs[0] == 0) {
         auto prop = forwardPropagatorsMissing[dist - 1];
@@ -171,7 +171,7 @@ class PropagationCore {
     assert(to_segsite.pos > from_segsite.pos);
     assert(to_segsite.obs[0] < 2);
   }
-  body {  
+  do {  
     auto dist = to_segsite.pos - from_segsite.pos;
       if(to_segsite.obs[0] == 0) {
         auto prop = backwardPropagatorsMissing[dist - 1];
@@ -223,7 +223,7 @@ class PropagationCore {
   }
   
   void setState(State_t s, double x, in SegSite_t segsite) const 
-  body {
+  do {
     foreach(a; 0 .. psmc.nrStates) {
       gsl_vector_set(s.vec, a, x);
       if(s.isBwd) {

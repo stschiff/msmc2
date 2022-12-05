@@ -149,7 +149,7 @@ class MinFunc {
   out(x) {
     assert(x.length == nrParams);
   }
-  body {
+  do {
     auto x = getXfromLambdaVec(initialParams.lambdaVec);
     if(!fixedRecombination)
       x ~= log(initialParams.recombinationRate);
@@ -160,7 +160,7 @@ class MinFunc {
   out(x) {
     assert(x.length == timeSegmentPattern.length);
   }
-  body {
+  do {
     double[] ret;
     size_t lIndex = 0;
     foreach(nrIntervalsInSegment; timeSegmentPattern) {
@@ -180,7 +180,7 @@ class MinFunc {
   in {
     assert(x.length == nrParams);
   }
-  body {
+  do {
     auto lambdaVec = initialParams.lambdaVec.dup;
     auto timeIndex = 0U;
     foreach(segmentIndex, nrIntervalsInSegment; timeSegmentPattern) {
@@ -198,7 +198,7 @@ class MinFunc {
   in {
     assert(!fixedRecombination);
   }
-  body {
+  do {
     return exp(x[$ - 1]);
   }
 

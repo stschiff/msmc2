@@ -119,7 +119,7 @@ class PSMC_hmm {
     foreach(i; 0 .. L)
       assert(scalingFactors[i] > 0);
   }
-  body {
+  do {
     enforce(!have_run_forward);
     propagationCore.initialState(forwardStates[0]);
     scalingFactors[0] = forwardStates[0].norm;
@@ -185,7 +185,7 @@ class PSMC_hmm {
     assert(pos >= segsites[0].pos);
     assert(pos <= segsites[$ - 1].pos);
   }
-  body {
+  do {
     auto index = getRightIndexAtPos(pos);
     if(pos == segsites[index].pos) {
       forwardStates[index].copy_into(s);
@@ -201,7 +201,7 @@ class PSMC_hmm {
     assert(pos >= segsites[0].pos);
     assert(pos <= segsites[$ - 1].pos);
   }
-  body {
+  do {
     auto index = getRightIndexAtPos(pos);
     auto site = getSegSite(pos);
     if(pos == segsites[index].pos) {
@@ -237,7 +237,7 @@ class PSMC_hmm {
       assert(segsites[result - 1].pos < pos);
     }
   }
-  body {
+  do {
     while(segsites[indexCache].pos < pos) {
       ++indexCache;
     }
@@ -255,7 +255,7 @@ class PSMC_hmm {
     assert(have_run_forward);
     assert(index < L);
   }
-  body {
+  do {
     if(index == L - 1) {
       assert(scalingFactors[L - 1] > 0, text(scalingFactors[L - 1]));
       propagationCore.setState(currentBackwardState, 1.0 / scalingFactors[L - 1], segsites[L - 1]);
